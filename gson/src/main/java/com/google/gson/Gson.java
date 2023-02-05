@@ -149,6 +149,8 @@ public final class Gson {
   static final boolean DEFAULT_USE_JDK_UNSAFE = true;
   static final String DEFAULT_DATE_PATTERN = null;
   static final FieldNamingStrategy DEFAULT_FIELD_NAMING_STRATEGY = FieldNamingPolicy.IDENTITY;
+  // null means implementation specific order
+  static final FieldOrderStrategy DEFAULT_FIELD_ORDER_STRATEGY = null;
   static final ToNumberStrategy DEFAULT_OBJECT_TO_NUMBER_STRATEGY = ToNumberPolicy.DOUBLE;
   static final ToNumberStrategy DEFAULT_NUMBER_TO_NUMBER_STRATEGY = ToNumberPolicy.LAZILY_PARSED_NUMBER;
 
@@ -177,6 +179,7 @@ public final class Gson {
 
   final Excluder excluder;
   final FieldNamingStrategy fieldNamingStrategy;
+  final FieldOrderStrategy fieldOrderStrategy;
   final Map<Type, InstanceCreator<?>> instanceCreators;
   final boolean serializeNulls;
   final boolean complexMapKeySerialization;
@@ -231,7 +234,7 @@ public final class Gson {
    * </ul>
    */
   public Gson() {
-    this(Excluder.DEFAULT, DEFAULT_FIELD_NAMING_STRATEGY,
+    this(Excluder.DEFAULT, DEFAULT_FIELD_NAMING_STRATEGY, DEFAULT_FIELD_ORDER_STRATEGY,
         Collections.<Type, InstanceCreator<?>>emptyMap(), DEFAULT_SERIALIZE_NULLS,
         DEFAULT_COMPLEX_MAP_KEYS, DEFAULT_JSON_NON_EXECUTABLE, DEFAULT_ESCAPE_HTML,
         DEFAULT_PRETTY_PRINT, DEFAULT_LENIENT, DEFAULT_SPECIALIZE_FLOAT_VALUES,
@@ -242,7 +245,7 @@ public final class Gson {
         Collections.<ReflectionAccessFilter>emptyList());
   }
 
-  Gson(Excluder excluder, FieldNamingStrategy fieldNamingStrategy,
+  Gson(Excluder excluder, FieldNamingStrategy fieldNamingStrategy, FieldOrderStrategy fieldOrderStrategy,
       Map<Type, InstanceCreator<?>> instanceCreators, boolean serializeNulls,
       boolean complexMapKeySerialization, boolean generateNonExecutableGson, boolean htmlSafe,
       boolean prettyPrinting, boolean lenient, boolean serializeSpecialFloatingPointValues,
@@ -255,6 +258,7 @@ public final class Gson {
       List<ReflectionAccessFilter> reflectionFilters) {
     this.excluder = excluder;
     this.fieldNamingStrategy = fieldNamingStrategy;
+    this.fieldOrderStrategy = fieldOrderStrategy;
     this.instanceCreators = instanceCreators;
     this.constructorConstructor = new ConstructorConstructor(instanceCreators, useJdkUnsafe, reflectionFilters);
     this.serializeNulls = serializeNulls;
@@ -338,7 +342,7 @@ public final class Gson {
     factories.add(jsonAdapterFactory);
     factories.add(TypeAdapters.ENUM_FACTORY);
     factories.add(new ReflectiveTypeAdapterFactory(
-        constructorConstructor, fieldNamingStrategy, excluder, jsonAdapterFactory, reflectionFilters));
+        constructorConstructor, fieldNamingStrategy, fieldOrderStrategy, excluder, jsonAdapterFactory, reflectionFilters));
 
     this.factories = Collections.unmodifiableList(factories);
   }

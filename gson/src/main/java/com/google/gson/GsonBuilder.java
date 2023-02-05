@@ -19,6 +19,8 @@ package com.google.gson;
 import static com.google.gson.Gson.DEFAULT_COMPLEX_MAP_KEYS;
 import static com.google.gson.Gson.DEFAULT_DATE_PATTERN;
 import static com.google.gson.Gson.DEFAULT_ESCAPE_HTML;
+import static com.google.gson.Gson.DEFAULT_FIELD_NAMING_STRATEGY;
+import static com.google.gson.Gson.DEFAULT_FIELD_ORDER_STRATEGY;
 import static com.google.gson.Gson.DEFAULT_JSON_NON_EXECUTABLE;
 import static com.google.gson.Gson.DEFAULT_LENIENT;
 import static com.google.gson.Gson.DEFAULT_NUMBER_TO_NUMBER_STRATEGY;
@@ -86,7 +88,8 @@ import java.util.Objects;
 public final class GsonBuilder {
   private Excluder excluder = Excluder.DEFAULT;
   private LongSerializationPolicy longSerializationPolicy = LongSerializationPolicy.DEFAULT;
-  private FieldNamingStrategy fieldNamingPolicy = FieldNamingPolicy.IDENTITY;
+  private FieldNamingStrategy fieldNamingStrategy = DEFAULT_FIELD_NAMING_STRATEGY;
+  private FieldOrderStrategy fieldOrderStrategy = DEFAULT_FIELD_ORDER_STRATEGY;
   private final Map<Type, InstanceCreator<?>> instanceCreators = new HashMap<>();
   private final List<TypeAdapterFactory> factories = new ArrayList<>();
   /** tree-style hierarchy factories. These come after factories for backwards compatibility. */
@@ -123,7 +126,8 @@ public final class GsonBuilder {
    */
   GsonBuilder(Gson gson) {
     this.excluder = gson.excluder;
-    this.fieldNamingPolicy = gson.fieldNamingStrategy;
+    this.fieldNamingStrategy = gson.fieldNamingStrategy;
+    this.fieldOrderStrategy = gson.fieldOrderStrategy;
     this.instanceCreators.putAll(gson.instanceCreators);
     this.serializeNulls = gson.serializeNulls;
     this.complexMapKeySerialization = gson.complexMapKeySerialization;
@@ -371,7 +375,13 @@ public final class GsonBuilder {
    * @since 1.3
    */
   public GsonBuilder setFieldNamingStrategy(FieldNamingStrategy fieldNamingStrategy) {
-    this.fieldNamingPolicy = Objects.requireNonNull(fieldNamingStrategy);
+    this.fieldNamingStrategy = Objects.requireNonNull(fieldNamingStrategy);
+    return this;
+  }
+
+  // Field order only has effect on serialization; default order is implementation detail
+  public GsonBuilder setFieldOrderStrategy(FieldOrderStrategy fieldOrderStrategy) {
+    this.fieldOrderStrategy = Objects.requireNonNull(fieldOrderStrategy);
     return this;
   }
 
@@ -759,7 +769,7 @@ public final class GsonBuilder {
 
     addTypeAdaptersForDate(datePattern, dateStyle, timeStyle, factories);
 
-    return new Gson(excluder, fieldNamingPolicy, new HashMap<>(instanceCreators),
+    return new Gson(excluder, fieldNamingStrategy, fieldOrderStrategy, new HashMap<>(instanceCreators),
         serializeNulls, complexMapKeySerialization,
         generateNonExecutableJson, escapeHtmlChars, prettyPrinting, lenient,
         serializeSpecialFloatingPointValues, useJdkUnsafe, longSerializationPolicy,

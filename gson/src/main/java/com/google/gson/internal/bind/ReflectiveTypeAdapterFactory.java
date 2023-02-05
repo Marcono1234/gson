@@ -16,15 +16,8 @@
 
 package com.google.gson.internal.bind;
 
-import com.google.gson.FieldNamingStrategy;
-import com.google.gson.Gson;
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.ReflectionAccessFilter;
+import com.google.gson.*;
 import com.google.gson.ReflectionAccessFilter.FilterResult;
-import com.google.gson.TypeAdapter;
-import com.google.gson.TypeAdapterFactory;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.internal.$Gson$Types;
@@ -61,16 +54,18 @@ import java.util.Map;
 public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
   private final ConstructorConstructor constructorConstructor;
   private final FieldNamingStrategy fieldNamingPolicy;
+  private final FieldOrderStrategy fieldOrderStrategy;
   private final Excluder excluder;
   private final JsonAdapterAnnotationTypeAdapterFactory jsonAdapterFactory;
   private final List<ReflectionAccessFilter> reflectionFilters;
 
   public ReflectiveTypeAdapterFactory(ConstructorConstructor constructorConstructor,
-      FieldNamingStrategy fieldNamingPolicy, Excluder excluder,
+      FieldNamingStrategy fieldNamingPolicy, FieldOrderStrategy fieldOrderStrategy, Excluder excluder,
       JsonAdapterAnnotationTypeAdapterFactory jsonAdapterFactory,
       List<ReflectionAccessFilter> reflectionFilters) {
     this.constructorConstructor = constructorConstructor;
     this.fieldNamingPolicy = fieldNamingPolicy;
+    this.fieldOrderStrategy = fieldOrderStrategy;
     this.excluder = excluder;
     this.jsonAdapterFactory = jsonAdapterFactory;
     this.reflectionFilters = reflectionFilters;
@@ -305,6 +300,39 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
       type = TypeToken.get($Gson$Types.resolve(type.getType(), raw, raw.getGenericSuperclass()));
       raw = type.getRawType();
     }
+
+    if (fieldOrderStrategy != null) {
+      Map<String, BoundField> oldResult = result;
+      result = new LinkedHashMap<>();
+
+      List<FieldOrderStrategy.SerializedField> fieldsToSort = new ArrayList<>();
+      // Map to look up BoundField instances after sorting was done
+      Map<Field, BoundField> boundFieldMap = new HashMap<>();
+
+      for (Map.Entry<String, BoundField> entry : oldResult.entrySet()) {
+        BoundField boundField = entry.getValue();
+        if (boundField.serialized) {
+          Field field = boundField.field;
+          boundFieldMap.put(field, boundField);
+          fieldsToSort.add(new FieldOrderStrategy.SerializedField(entry.getKey(), field));
+        } else {
+          // For deserialization order should not make a difference so can already add them to map
+          result.put(entry.getKey(), entry.getValue());
+        }
+      }
+
+      try {
+        Collections.sort(fieldsToSort, fieldOrderStrategy);
+      } catch (RuntimeException e) {
+        // TODO: Proper exception type
+        throw new RuntimeException("Failed ordering fields for " + originalRaw, e);
+      }
+      for (FieldOrderStrategy.SerializedField field : fieldsToSort) {
+        // Add back BoundField in sorted order
+        result.put(field.getName(), boundFieldMap.get(field.getField()));
+      }
+    }
+
     return result;
   }
 
