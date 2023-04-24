@@ -71,7 +71,9 @@ public interface MissingFieldValueStrategy {
    * @param resolvedFieldType resolved type of the field
    * @return the field value, or {@code null}
    */
-  // TODO: Should this really expose `instance`? Only use case would be to derive value from other fields
+  // TODO: Should this really expose `instance` (and `declaringType`)? Only use case would be to derive value from other fields
   //   but besides that user should not directly manipulate `instance` but return new value instead
+  // TODO: Should this return <T> and have TypeToken<T> as resolvedFieldType? Might have increased
+  //   type safety but often requires user implementation to perform unsafe casts
   Object handleMissingField(TypeToken<?> declaringType, Object instance, Field field, TypeToken<?> resolvedFieldType);
 }

@@ -16,6 +16,7 @@
 
 package com.google.gson.internal.bind;
 
+import com.google.gson.DuplicateFieldStrategy;
 import com.google.gson.FieldNamingStrategy;
 import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
@@ -67,19 +68,21 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
   private final JsonAdapterAnnotationTypeAdapterFactory jsonAdapterFactory;
   private final MissingFieldValueStrategy missingFieldValueStrategy;
   private final UnknownFieldStrategy unknownFieldStrategy;
+  private final DuplicateFieldStrategy duplicateFieldStrategy;
   private final List<ReflectionAccessFilter> reflectionFilters;
 
   public ReflectiveTypeAdapterFactory(ConstructorConstructor constructorConstructor,
       FieldNamingStrategy fieldNamingPolicy, Excluder excluder,
       JsonAdapterAnnotationTypeAdapterFactory jsonAdapterFactory,
       MissingFieldValueStrategy missingFieldValueStrategy, UnknownFieldStrategy unknownFieldStrategy,
-      List<ReflectionAccessFilter> reflectionFilters) {
+      DuplicateFieldStrategy duplicateFieldStrategy, List<ReflectionAccessFilter> reflectionFilters) {
     this.constructorConstructor = constructorConstructor;
     this.fieldNamingPolicy = fieldNamingPolicy;
     this.excluder = excluder;
     this.jsonAdapterFactory = jsonAdapterFactory;
     this.missingFieldValueStrategy = missingFieldValueStrategy;
     this.unknownFieldStrategy = unknownFieldStrategy;
+    this.duplicateFieldStrategy = duplicateFieldStrategy;
     this.reflectionFilters = reflectionFilters;
   }
 
@@ -130,14 +133,14 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     if (ReflectionHelper.isRecord(raw)) {
       @SuppressWarnings("unchecked")
       TypeAdapter<T> adapter = new RecordAdapter<>(gson,
-          missingFieldValueStrategy, unknownFieldStrategy, type, (Class<T>) raw,
+          missingFieldValueStrategy, unknownFieldStrategy, duplicateFieldStrategy, type, (Class<T>) raw,
           getBoundFields(gson, type, raw, blockInaccessible, true), blockInaccessible);
       return adapter;
     }
 
     ObjectConstructor<T> constructor = constructorConstructor.get(type);
     return new FieldReflectionAdapter<>(gson, missingFieldValueStrategy, unknownFieldStrategy,
-        constructor, type, getBoundFields(gson, type, raw, blockInaccessible, false));
+        duplicateFieldStrategy, constructor, type, getBoundFields(gson, type, raw, blockInaccessible, false));
   }
 
   private static <M extends AccessibleObject & Member> void checkAccessible(Object object, M member) {
@@ -170,16 +173,16 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     if (mapped == null) mapped = context.getAdapter(fieldType);
 
     @SuppressWarnings("unchecked")
-    final TypeAdapter<Object> typeAdapter = (TypeAdapter<Object>) mapped;
+    final TypeAdapter<Object> readTypeAdapter = (TypeAdapter<Object>) mapped;
     final TypeAdapter<Object> writeTypeAdapter;
     if (serialize) {
-      writeTypeAdapter = jsonAdapterPresent ? typeAdapter
-          : new TypeAdapterRuntimeTypeWrapper<>(context, typeAdapter, fieldType.getType());
+      writeTypeAdapter = jsonAdapterPresent ? readTypeAdapter
+          : new TypeAdapterRuntimeTypeWrapper<>(context, readTypeAdapter, fieldType.getType());
     } else {
       // Will never actually be used, but we set it to avoid confusing nullness-analysis tools
-      writeTypeAdapter = typeAdapter;
+      writeTypeAdapter = readTypeAdapter;
     }
-    return new BoundField(name, field, fieldType, serialize, deserialize) {
+    return new BoundField(name, field, fieldType, readTypeAdapter, serialize, deserialize) {
       @Override void write(JsonWriter writer, Object source)
           throws IOException, IllegalAccessException {
         if (!serialized) return;
@@ -213,8 +216,7 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
       }
 
       @Override
-      void readIntoArray(JsonReader reader, int index, Object[] target) throws IOException, JsonParseException {
-        Object fieldValue = typeAdapter.read(reader);
+      void storeIntoArray(Object fieldValue, JsonReader reader, int index, Object[] target) throws IOException, JsonParseException {
         if (fieldValue == null && isPrimitive) {
           throw new JsonParseException("null is not allowed as value for record component '" + fieldName + "'"
               + " of primitive type; at path " + reader.getPath());
@@ -223,14 +225,7 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
       }
 
       @Override
-      void readIntoField(JsonReader reader, Object target)
-          throws IOException, IllegalAccessException {
-        Object fieldValue = typeAdapter.read(reader);
-        putIntoField(fieldValue, target);
-      }
-
-      @Override
-      void putIntoField(Object fieldValue, Object target) throws IllegalAccessException {
+      void storeIntoField(Object fieldValue, Object target) throws IllegalAccessException {
         if (fieldValue != null || !isPrimitive) {
           if (blockInaccessible) {
             checkAccessible(target, field);
@@ -335,14 +330,17 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     /** Name of the underlying field */
     final String fieldName;
     final TypeToken<?> resolvedType;
+    final TypeAdapter<?> readTypeAdapter;
     final boolean serialized;
     final boolean deserialized;
 
-    protected BoundField(String name, Field field, TypeToken<?> resolvedType, boolean serialized, boolean deserialized) {
+    protected BoundField(String name, Field field, TypeToken<?> resolvedType, TypeAdapter<?> readTypeAdapter,
+        boolean serialized, boolean deserialized) {
       this.name = name;
       this.field = field;
       this.fieldName = field.getName();
       this.resolvedType = resolvedType;
+      this.readTypeAdapter = readTypeAdapter;
       this.serialized = serialized;
       this.deserialized = deserialized;
     }
@@ -350,14 +348,16 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     /** Reads this field value from the source, and append its JSON value to the writer */
     abstract void write(JsonWriter writer, Object source) throws IOException, IllegalAccessException;
 
-    /** Reads the value into the target array, used to provide constructor arguments for records */
-    abstract void readIntoArray(JsonReader reader, int index, Object[] target) throws IOException, JsonParseException;
+    /**
+     * Stores the value into the target array, used to provide constructor arguments for records
+     *
+     * @param reader should only be used to call {@link JsonReader#getPreviousPath()} for exceptions,
+     *      since value has already been read
+     */
+    abstract void storeIntoArray(Object fieldValue, JsonReader reader, int index, Object[] target) throws IOException, JsonParseException;
 
-    /** Reads the value from the reader, and set it on the corresponding field on target via reflection */
-    abstract void readIntoField(JsonReader reader, Object target) throws IOException, IllegalAccessException;
-
-    /** Puts the field value {@code fieldValue} into the field of {@code target} */
-    abstract void putIntoField(Object fieldValue, Object target) throws IllegalAccessException;
+    /** Stores the field value in the corresponding field on target via reflection */
+    abstract void storeIntoField(Object fieldValue, Object target) throws IllegalAccessException;
   }
 
   /**
@@ -378,16 +378,18 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     final Gson gson;
     final MissingFieldValueStrategy missingFieldValueStrategy;
     final UnknownFieldStrategy unknownFieldStrategy;
+    final DuplicateFieldStrategy duplicateFieldStrategy;
     final TypeToken<T> type;
     final Map<String, BoundField> boundFields;
     /** Fields to consider for missing field handling; {@code null} if missing fields should be ignored */
     final Map<Field, BoundField> missingFieldsToCheck;
 
     Adapter(Gson gson, MissingFieldValueStrategy missingFieldValueStrategy, UnknownFieldStrategy unknownFieldStrategy,
-        TypeToken<T> type, Map<String, BoundField> boundFields) {
+        DuplicateFieldStrategy duplicateFieldStrategy, TypeToken<T> type, Map<String, BoundField> boundFields) {
       this.gson = gson;
       this.missingFieldValueStrategy = missingFieldValueStrategy;
       this.unknownFieldStrategy = unknownFieldStrategy;
+      this.duplicateFieldStrategy = duplicateFieldStrategy;
       this.type = type;
       this.boundFields = boundFields;
 
@@ -431,6 +433,8 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
 
       A accumulator = createAccumulator();
       Map<Field, BoundField> missingFields = missingFieldsToCheck == null ? null : new LinkedHashMap<>(missingFieldsToCheck);
+      // For USE_LAST there is no need to check for duplicate fields, simply let field values overwrite each other
+      Map<Field, Object> fieldValues = duplicateFieldStrategy == DuplicateFieldStrategy.USE_LAST ? null : new HashMap<>();
 
       try {
         in.beginObject();
@@ -452,7 +456,43 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
               throw new RuntimeException("Failed handling unknown field '" + name + "' for " + type.getRawType() + " at path " + in.getPath(), e);
             }
           } else {
-            readField(accumulator, in, field);
+            Object fieldValue;
+            Field refField = field.field;
+            // Uses containsKey in case field has `null` value
+            boolean wasHandledByStrategy = fieldValues != null && fieldValues.containsKey(refField);
+
+            if (wasHandledByStrategy) {
+              Object existingValue = fieldValues.get(refField);
+              try {
+                @SuppressWarnings("unchecked")
+                Object v = duplicateFieldStrategy.handleDuplicateField(type, createObjectForFieldStrategy(accumulator), refField, (TypeToken<Object>) field.resolvedType, (TypeAdapter<Object>) field.readTypeAdapter, existingValue, name, in);
+                fieldValue = v;
+              } catch (Exception e) {
+                // DuplicateFieldStrategy.THROW_EXCEPTION provides enough context, can directly rethrow
+                if (duplicateFieldStrategy == DuplicateFieldStrategy.THROW_EXCEPTION) {
+                  throw e;
+                }
+                // TODO Proper exception type
+                throw new RuntimeException("Failed handling duplicate field '" + name + "' (" + ReflectionHelper.fieldToString(refField) + ")"
+                    + " at path " + in.getPath(), e);
+              }
+            } else {
+              fieldValue = field.readTypeAdapter.read(in);
+            }
+
+            if (fieldValues != null) {
+              fieldValues.put(refField, fieldValue);
+            }
+            try {
+              storeFieldValue(accumulator, fieldValue, in, field);
+            } catch (Exception e) {
+              if (wasHandledByStrategy) {
+                String valueType = fieldValue == null ? "null" : fieldValue.getClass().getName();
+                // TODO Proper exception type
+                throw new RuntimeException("Failed storing " + valueType + " provided by " + duplicateFieldStrategy + " into field '" + ReflectionHelper.fieldToString(refField) + "' at path " + in.getPreviousPath(), e);
+              }
+              throw e;
+            }
 
             if (missingFields != null) {
               missingFields.remove(field.field);
@@ -505,10 +545,12 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     abstract Object createObjectForFieldStrategy(A accumulator);
 
     /**
-     * Reads a single BoundField into the accumulator. The JsonReader will be pointed at the
-     * start of the value for the BoundField to read from.
+     * Stores a field value into the accumulator.
+     *
+     * @param in should only be used to call {@link JsonReader#getPreviousPath()} for exceptions,
+     *      since value has already been read
      */
-    abstract void readField(A accumulator, JsonReader in, BoundField field)
+    abstract void storeFieldValue(A accumulator, Object fieldValue, JsonReader in, BoundField field)
         throws IllegalAccessException, IOException;
 
     /**
@@ -527,8 +569,8 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     private final ObjectConstructor<T> constructor;
 
     FieldReflectionAdapter(Gson gson, MissingFieldValueStrategy missingFieldValueStrategy, UnknownFieldStrategy unknownFieldStrategy,
-        ObjectConstructor<T> constructor, TypeToken<T> type, Map<String, BoundField> boundFields) {
-      super(gson, missingFieldValueStrategy, unknownFieldStrategy, type, boundFields);
+        DuplicateFieldStrategy duplicateFieldStrategy, ObjectConstructor<T> constructor, TypeToken<T> type, Map<String, BoundField> boundFields) {
+      super(gson, missingFieldValueStrategy, unknownFieldStrategy, duplicateFieldStrategy, type, boundFields);
       this.constructor = constructor;
     }
 
@@ -544,15 +586,15 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     }
 
     @Override
-    void readField(T accumulator, JsonReader in, BoundField field)
+    void storeFieldValue(T accumulator, Object fieldValue, JsonReader in, BoundField field)
         throws IllegalAccessException, IOException {
-      field.readIntoField(in, accumulator);
+      field.storeIntoField(fieldValue, accumulator);
     }
 
     @Override
     void addMissingFieldValue(T accumulator, BoundField field, Object value) {
       try {
-        field.putIntoField(value, accumulator);
+        field.storeIntoField(value, accumulator);
       } catch (IllegalAccessException e) {
         throw ReflectionHelper.createExceptionForUnexpectedIllegalAccess(e);
       }
@@ -575,8 +617,8 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     private final Map<String, Integer> componentIndices = new HashMap<>();
 
     RecordAdapter(Gson gson, MissingFieldValueStrategy missingFieldValueStrategy, UnknownFieldStrategy unknownFieldStrategy,
-        TypeToken<T> type, Class<T> raw, Map<String, BoundField> boundFields, boolean blockInaccessible) {
-      super(gson, missingFieldValueStrategy, unknownFieldStrategy, type, boundFields);
+        DuplicateFieldStrategy duplicateFieldStrategy, TypeToken<T> type, Class<T> raw, Map<String, BoundField> boundFields, boolean blockInaccessible) {
+      super(gson, missingFieldValueStrategy, unknownFieldStrategy, duplicateFieldStrategy, type, boundFields);
       constructor = ReflectionHelper.getCanonicalRecordConstructor(raw);
 
       if (blockInaccessible) {
@@ -643,8 +685,8 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     }
 
     @Override
-    void readField(Object[] accumulator, JsonReader in, BoundField field) throws IOException {
-      field.readIntoArray(in, getComponentIndex(field.fieldName), accumulator);
+    void storeFieldValue(Object[] accumulator, Object fieldValue, JsonReader in, BoundField field) throws IOException {
+      field.storeIntoArray(fieldValue, in, getComponentIndex(field.fieldName), accumulator);
     }
 
     @Override

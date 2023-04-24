@@ -69,7 +69,7 @@ public final class GsonTest {
         new ArrayList<TypeAdapterFactory>(), new ArrayList<TypeAdapterFactory>(),
         CUSTOM_OBJECT_TO_NUMBER_STRATEGY, CUSTOM_NUMBER_TO_NUMBER_STRATEGY,
         MissingFieldValueStrategy.THROW_EXCEPTION, UnknownFieldStrategy.THROW_EXCEPTION,
-        Collections.<ReflectionAccessFilter>emptyList());
+        DuplicateFieldStrategy.USE_LAST, Collections.<ReflectionAccessFilter>emptyList());
 
     assertThat(gson.excluder).isEqualTo(CUSTOM_EXCLUDER);
     assertThat(gson.fieldNamingStrategy()).isEqualTo(CUSTOM_FIELD_NAMING_STRATEGY);
@@ -87,7 +87,7 @@ public final class GsonTest {
         new ArrayList<TypeAdapterFactory>(), new ArrayList<TypeAdapterFactory>(),
         CUSTOM_OBJECT_TO_NUMBER_STRATEGY, CUSTOM_NUMBER_TO_NUMBER_STRATEGY,
         MissingFieldValueStrategy.THROW_EXCEPTION, UnknownFieldStrategy.THROW_EXCEPTION,
-        Collections.<ReflectionAccessFilter>emptyList());
+        DuplicateFieldStrategy.USE_LAST, Collections.<ReflectionAccessFilter>emptyList());
 
     Gson clone = original.newBuilder()
         .registerTypeAdapter(Object.class, new TestTypeAdapter())

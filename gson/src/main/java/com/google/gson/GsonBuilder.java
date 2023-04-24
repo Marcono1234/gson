@@ -18,6 +18,7 @@ package com.google.gson;
 
 import static com.google.gson.Gson.DEFAULT_COMPLEX_MAP_KEYS;
 import static com.google.gson.Gson.DEFAULT_DATE_PATTERN;
+import static com.google.gson.Gson.DEFAULT_DUPLICATE_FIELD_STRATEGY;
 import static com.google.gson.Gson.DEFAULT_ESCAPE_HTML;
 import static com.google.gson.Gson.DEFAULT_FORMATTING_STYLE;
 import static com.google.gson.Gson.DEFAULT_JSON_NON_EXECUTABLE;
@@ -108,6 +109,7 @@ public final class GsonBuilder {
   private ToNumberStrategy numberToNumberStrategy = DEFAULT_NUMBER_TO_NUMBER_STRATEGY;
   private MissingFieldValueStrategy missingFieldValueStrategy = DEFAULT_MISSING_FIELD_VALUE_STRATEGY;
   private UnknownFieldStrategy unknownFieldStrategy = DEFAULT_UNKNOWN_FIELD_STRATEGY;
+  private DuplicateFieldStrategy duplicateFieldStrategy = DEFAULT_DUPLICATE_FIELD_STRATEGY;
   private final ArrayDeque<ReflectionAccessFilter> reflectionFilters = new ArrayDeque<>();
 
   /**
@@ -147,6 +149,7 @@ public final class GsonBuilder {
     this.numberToNumberStrategy = gson.numberToNumberStrategy;
     this.missingFieldValueStrategy = gson.missingFieldValueStrategy;
     this.unknownFieldStrategy = gson.unknownFieldStrategy;
+    this.duplicateFieldStrategy = gson.duplicateFieldStrategy;
     this.reflectionFilters.addAll(gson.reflectionFilters);
   }
 
@@ -422,6 +425,11 @@ public final class GsonBuilder {
    */
   public GsonBuilder setUnknownFieldStrategy(UnknownFieldStrategy unknownFieldStrategy) {
     this.unknownFieldStrategy = Objects.requireNonNull(unknownFieldStrategy);
+    return this;
+  }
+
+  public GsonBuilder setDuplicateFieldStrategy(DuplicateFieldStrategy duplicateFieldStrategy) {
+    this.duplicateFieldStrategy = Objects.requireNonNull(duplicateFieldStrategy);
     return this;
   }
 
@@ -820,7 +828,7 @@ public final class GsonBuilder {
         datePattern, dateStyle, timeStyle, new ArrayList<>(this.factories),
         new ArrayList<>(this.hierarchyFactories), factories,
         objectToNumberStrategy, numberToNumberStrategy,
-        missingFieldValueStrategy, unknownFieldStrategy, new ArrayList<>(reflectionFilters));
+        missingFieldValueStrategy, unknownFieldStrategy, duplicateFieldStrategy, new ArrayList<>(reflectionFilters));
   }
 
   private void addTypeAdaptersForDate(String datePattern, int dateStyle, int timeStyle,
