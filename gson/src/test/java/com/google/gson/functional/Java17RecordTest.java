@@ -96,7 +96,7 @@ public final class Java17RecordTest {
       }
     }
 
-    var exception = assertThrows(JsonIOException.class, () -> gson.getAdapter(LocalRecord.class));
+    var exception = assertThrows(JsonIOException.class, () -> gson.getAdapter(LocalRecord.class).fromJson("{}"));
     assertThat(exception)
         .hasMessageThat()
         .isEqualTo(

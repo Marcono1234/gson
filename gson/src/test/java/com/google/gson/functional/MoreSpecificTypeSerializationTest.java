@@ -19,7 +19,14 @@ package com.google.gson.functional;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
+import java.lang.reflect.Type;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -115,6 +122,35 @@ public class MoreSpecificTypeSerializationTest {
     JsonObject sub = json.get("sub").getAsJsonObject();
     assertThat(sub.get("t").getAsString()).isEqualTo("two");
     assertThat(sub.get("s")).isNull();
+  }
+
+  static class BufferHolder<T extends Buffer> {
+    final T buffer;
+
+    public BufferHolder(T buffer) {
+      this.buffer = buffer;
+    }
+  }
+
+  // TODO: Proper test name; maybe also use simpler variant such as missing no-args constructor (and
+  //   Unsafe disabled), instead of relying on JDK classes being inaccessible
+  @Test
+  public void test() {
+    BufferHolder<?> holder = new BufferHolder<>(ByteBuffer.wrap(new byte[] {1, 2}));
+    Gson gson =
+        new GsonBuilder()
+            .registerTypeHierarchyAdapter(
+                ByteBuffer.class,
+                new JsonSerializer<ByteBuffer>() {
+                  @SuppressWarnings("ByteBufferBackingArray")
+                  @Override
+                  public JsonElement serialize(
+                      ByteBuffer src, Type typeOfSrc, JsonSerializationContext context) {
+                    return context.serialize(src.array());
+                  }
+                })
+            .create();
+    assertThat(gson.toJson(holder)).isEqualTo("{\"buffer\":[1,2]}");
   }
 
   private static class Base {

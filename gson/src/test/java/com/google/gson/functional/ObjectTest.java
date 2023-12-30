@@ -40,6 +40,7 @@ import com.google.gson.common.TestTypes.ClassWithTransientFields;
 import com.google.gson.common.TestTypes.Nested;
 import com.google.gson.common.TestTypes.PrimitiveArray;
 import com.google.gson.reflect.TypeToken;
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -172,7 +173,7 @@ public class ObjectTest {
   }
 
   @Test
-  public void testClassWithDuplicateFields() {
+  public void testClassWithDuplicateFields() throws IOException {
     String expectedMessage =
         "Class com.google.gson.functional.ObjectTest$Subclass declares multiple JSON fields named"
             + " 's'; conflict is caused by fields"
@@ -181,7 +182,7 @@ public class ObjectTest {
             + "See https://github.com/google/gson/blob/main/Troubleshooting.md#duplicate-fields";
 
     try {
-      gson.getAdapter(Subclass.class);
+      gson.getAdapter(Subclass.class).fromJson("{}");
       fail();
     } catch (IllegalArgumentException e) {
       assertThat(e).hasMessageThat().isEqualTo(expectedMessage);
@@ -206,7 +207,7 @@ public class ObjectTest {
             .create();
 
     try {
-      gson.getAdapter(Subclass.class);
+      gson.getAdapter(Subclass.class).toJson(new Subclass());
       fail();
     } catch (IllegalArgumentException e) {
       assertThat(e).hasMessageThat().isEqualTo(expectedMessage);

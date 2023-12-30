@@ -944,6 +944,41 @@ public final class TypeAdapters {
   public static final TypeAdapterFactory JSON_ELEMENT_FACTORY =
       newTypeHierarchyFactory(JsonElement.class, JSON_ELEMENT);
 
+  /**
+   * Factory for {@link java.lang.Enum}, and only for that class, but not for any specific enum
+   * classes.
+   */
+  public static final TypeAdapterFactory ENUM_BASE_CLASS_FACTORY =
+      new TypeAdapterFactory() {
+        @Override
+        public <T> TypeAdapter<T> create(final Gson gson, TypeToken<T> type) {
+          if (type.getRawType() != Enum.class) {
+            return null;
+          }
+
+          return new TypeAdapter<T>() {
+            @Override
+            public T read(JsonReader in) throws IOException {
+              throw new UnsupportedOperationException(
+                  "Deserializing base class java.lang.Enum is not supported;"
+                      + " only deserialization of subclasses is supported");
+            }
+
+            @Override
+            public void write(JsonWriter out, T value) throws IOException {
+              if (value == null) {
+                out.nullValue();
+                return;
+              }
+
+              @SuppressWarnings("unchecked")
+              TypeAdapter<T> delegate = (TypeAdapter<T>) gson.getAdapter(value.getClass());
+              delegate.write(out, value);
+            }
+          };
+        }
+      };
+
   private static final class EnumTypeAdapter<T extends Enum<T>> extends TypeAdapter<T> {
     private final Map<String, T> nameToConstant = new HashMap<>();
     private final Map<String, T> stringToConstant = new HashMap<>();

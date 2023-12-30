@@ -21,6 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
+import com.google.gson.internal.bind.ReflectiveTypeAdapterFactory.Adapter;
 import com.google.gson.internal.reflect.Java17ReflectionHelperTest;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
@@ -53,8 +54,10 @@ public class Java17ReflectiveTypeAdapterFactoryTest {
   @Test
   public void testCustomAdapterForRecords() {
     Gson gson = new Gson();
-    TypeAdapter<?> recordAdapter = gson.getAdapter(unixDomainPrincipalClass);
-    TypeAdapter<?> defaultReflectionAdapter = gson.getAdapter(DummyClass.class);
+    TypeAdapter<?> recordAdapter =
+        ((Adapter<?>) gson.getAdapter(unixDomainPrincipalClass)).delegate();
+    TypeAdapter<?> defaultReflectionAdapter =
+        ((Adapter<?>) gson.getAdapter(DummyClass.class)).delegate();
     assertThat(defaultReflectionAdapter.getClass()).isNotEqualTo(recordAdapter.getClass());
   }
 

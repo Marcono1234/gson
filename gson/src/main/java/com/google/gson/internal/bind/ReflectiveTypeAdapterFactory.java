@@ -110,30 +110,7 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
       return null; // it's a primitive!
     }
 
-    FilterResult filterResult =
-        ReflectionAccessFilterHelper.getFilterResult(reflectionFilters, raw);
-    if (filterResult == FilterResult.BLOCK_ALL) {
-      throw new JsonIOException(
-          "ReflectionAccessFilter does not permit using reflection for "
-              + raw
-              + ". Register a TypeAdapter for this type or adjust the access filter.");
-    }
-    boolean blockInaccessible = filterResult == FilterResult.BLOCK_INACCESSIBLE;
-
-    // If the type is actually a Java Record, we need to use the RecordAdapter instead. This will
-    // always be false on JVMs that do not support records.
-    if (ReflectionHelper.isRecord(raw)) {
-      @SuppressWarnings("unchecked")
-      TypeAdapter<T> adapter =
-          (TypeAdapter<T>)
-              new RecordAdapter<>(
-                  raw, getBoundFields(gson, type, raw, blockInaccessible, true), blockInaccessible);
-      return adapter;
-    }
-
-    ObjectConstructor<T> constructor = constructorConstructor.get(type);
-    return new FieldReflectionAdapter<>(
-        constructor, getBoundFields(gson, type, raw, blockInaccessible, false));
+    return new Adapter<>(gson, type);
   }
 
   private static <M extends AccessibleObject & Member> void checkAccessible(
@@ -428,6 +405,75 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
         throws IOException, IllegalAccessException;
   }
 
+  // This class is public because external projects check for this class with `instanceof` (even
+  // though it is internal)
+  public class Adapter<T> extends TypeAdapter<T> {
+    private final Gson gson;
+    private final TypeToken<T> type;
+
+    /**
+     * The delegate is lazily created because it may not be needed (e.g. if reflective adapter is
+     * only used by other adapter for deserialization, but only serialization is performed), and
+     * creating it may fail. Field has to be {@code volatile} because {@link Gson} guarantees to be
+     * thread-safe.
+     */
+    private volatile TypeAdapter<T> delegate;
+
+    private Adapter(Gson gson, TypeToken<T> type) {
+      this.gson = gson;
+      this.type = type;
+      this.delegate = null;
+    }
+
+    private TypeAdapter<T> createDelegate() {
+      Class<?> raw = type.getRawType();
+      FilterResult filterResult =
+          ReflectionAccessFilterHelper.getFilterResult(reflectionFilters, raw);
+      if (filterResult == FilterResult.BLOCK_ALL) {
+        throw new JsonIOException(
+            "ReflectionAccessFilter does not permit using reflection for "
+                + raw
+                + ". Register a TypeAdapter for this type or adjust the access filter.");
+      }
+      boolean blockInaccessible = filterResult == FilterResult.BLOCK_INACCESSIBLE;
+
+      // If the type is actually a Java Record, we need to use the RecordAdapter instead. This will
+      // always be false on JVMs that do not support records.
+      if (ReflectionHelper.isRecord(raw)) {
+        @SuppressWarnings("unchecked")
+        TypeAdapter<T> adapter =
+            (TypeAdapter<T>)
+                new RecordAdapter<>(
+                    raw,
+                    getBoundFields(gson, type, raw, blockInaccessible, true),
+                    blockInaccessible);
+        return adapter;
+      }
+
+      ObjectConstructor<T> constructor = constructorConstructor.get(type);
+      return new FieldReflectionAdapter<>(
+          constructor, getBoundFields(gson, type, raw, blockInaccessible, false));
+    }
+
+    // package-private for testing
+    TypeAdapter<T> delegate() {
+      // A race might lead to `delegate` being assigned by multiple threads but the last assignment
+      // will stick
+      TypeAdapter<T> d = delegate;
+      return d != null ? d : (delegate = createDelegate());
+    }
+
+    @Override
+    public void write(JsonWriter out, T value) throws IOException {
+      delegate().write(out, value);
+    }
+
+    @Override
+    public T read(JsonReader in) throws IOException {
+      return delegate().read(in);
+    }
+  }
+
   /**
    * Base class for Adapters produced by this factory.
    *
@@ -441,12 +487,10 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
    * @param <T> type of objects that this Adapter creates.
    * @param <A> type of accumulator used to build the deserialization result.
    */
-  // This class is public because external projects check for this class with `instanceof` (even
-  // though it is internal)
-  public abstract static class Adapter<T, A> extends TypeAdapter<T> {
+  private abstract static class BaseAdapter<T, A> extends TypeAdapter<T> {
     private final FieldsData fieldsData;
 
-    Adapter(FieldsData fieldsData) {
+    BaseAdapter(FieldsData fieldsData) {
       this.fieldsData = fieldsData;
     }
 
@@ -512,7 +556,7 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     abstract T finalize(A accumulator);
   }
 
-  private static final class FieldReflectionAdapter<T> extends Adapter<T, T> {
+  private static final class FieldReflectionAdapter<T> extends BaseAdapter<T, T> {
     private final ObjectConstructor<T> constructor;
 
     FieldReflectionAdapter(ObjectConstructor<T> constructor, FieldsData fieldsData) {
@@ -537,7 +581,7 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     }
   }
 
-  private static final class RecordAdapter<T> extends Adapter<T, Object[]> {
+  private static final class RecordAdapter<T> extends BaseAdapter<T, Object[]> {
     static final Map<Class<?>, Object> PRIMITIVE_DEFAULTS = primitiveDefaults();
 
     // The canonical constructor of the record

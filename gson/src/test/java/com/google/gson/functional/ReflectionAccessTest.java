@@ -81,7 +81,7 @@ public class ReflectionAccessTest {
       Gson gson = new Gson();
       try {
         // Getting reflection based adapter should fail
-        gson.getAdapter(clazz);
+        gson.getAdapter(clazz).fromJson("{}");
         fail();
       } catch (SecurityException e) {
         assertThat(e).hasMessageThat().isEqualTo("Gson: no-member-access");

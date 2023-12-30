@@ -386,6 +386,7 @@ public final class Gson {
     factories.add(new MapTypeAdapterFactory(constructorConstructor, complexMapKeySerialization));
     this.jsonAdapterFactory = new JsonAdapterAnnotationTypeAdapterFactory(constructorConstructor);
     factories.add(jsonAdapterFactory);
+    factories.add(TypeAdapters.ENUM_BASE_CLASS_FACTORY);
     factories.add(TypeAdapters.ENUM_FACTORY);
     factories.add(
         new ReflectiveTypeAdapterFactory(
