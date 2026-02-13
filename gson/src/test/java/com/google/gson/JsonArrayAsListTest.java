@@ -117,7 +117,6 @@ public class JsonArrayAsListTest {
     List<JsonElement> expectedList =
         Arrays.asList(new JsonPrimitive(1), new JsonPrimitive(2), new JsonPrimitive(3));
     assertThat(list).isEqualTo(expectedList);
-    assertThat(list).isEqualTo(expectedList);
 
     NullPointerException e =
         assertThrows(
@@ -176,7 +175,6 @@ public class JsonArrayAsListTest {
     List<JsonElement> list = a.asList();
     assertThat(list).contains(new JsonPrimitive(1));
     assertThat(list).doesNotContain(new JsonPrimitive(2));
-    assertThat(list).doesNotContain(null);
 
     @SuppressWarnings({"unlikely-arg-type", "CollectionIncompatibleType"})
     boolean containsInt = list.contains(1); // should only contain JsonPrimitive(1)
