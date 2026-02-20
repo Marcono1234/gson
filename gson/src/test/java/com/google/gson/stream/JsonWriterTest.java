@@ -273,7 +273,12 @@ public final class JsonWriterTest {
     JsonWriter writer = new JsonWriter(stringWriter);
     // Normally lenient mode allows multiple top-level values
     writer.setStrictness(Strictness.LENIENT);
+    assertThat(writer.getTopLevelSeparator()).isEqualTo("");
+
+    // But explicitly disable it
     writer.setTopLevelSeparator(null);
+    assertThat(writer.getStrictness()).isEqualTo(Strictness.LENIENT);
+    assertThat(writer.getTopLevelSeparator()).isNull();
 
     writer.value(1);
 

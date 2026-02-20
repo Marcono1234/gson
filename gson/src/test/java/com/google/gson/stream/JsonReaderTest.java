@@ -1550,7 +1550,12 @@ public final class JsonReaderTest {
     JsonReader reader = new JsonReader(reader("[]{}"));
     // Normally lenient mode allows multiple top-level values
     reader.setStrictness(Strictness.LENIENT);
+    assertThat(reader.isMultiTopLevelValuesAllowed()).isTrue();
+
+    // But explicitly disable it
     reader.setMultiTopLevelValuesAllowed(false);
+    assertThat(reader.getStrictness()).isEqualTo(Strictness.LENIENT);
+    assertThat(reader.isMultiTopLevelValuesAllowed()).isFalse();
 
     reader.beginArray();
     reader.endArray();
