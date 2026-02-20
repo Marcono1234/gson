@@ -70,7 +70,6 @@ import java.util.Objects;
  *   <li>{@link #setAllowingMultipleValues(boolean)}, the default is {@code false}
  *   <li>{@link #setNestingLimit(int)}, the default is {@value #DEFAULT_NESTING_LIMIT}
  *   <li>{@link #setStrictness(Strictness)}, the default is {@link Strictness#LEGACY_STRICT}
- *   <li>{@link #setNestingLimit(int)}, the default is {@value #DEFAULT_NESTING_LIMIT}
  * </ul>
  *
  * The default configuration of {@code JsonReader} instances used internally by the {@link

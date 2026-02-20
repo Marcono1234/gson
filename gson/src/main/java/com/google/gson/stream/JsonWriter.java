@@ -68,8 +68,8 @@ import java.util.regex.Pattern;
  *       FormattingStyle#COMPACT}
  *   <li>{@link #setHtmlSafe(boolean)}, by default HTML characters are not escaped in the JSON
  *       output
- *   <li>{@link #setStrictness(Strictness)}, the default is {@link Strictness#LEGACY_STRICT}
  *   <li>{@link #setSerializeNulls(boolean)}, by default {@code null} is serialized
+ *   <li>{@link #setStrictness(Strictness)}, the default is {@link Strictness#LEGACY_STRICT}
  *   <li>{@link #setTopLevelSeparator(String)}, by default {@code null} (= disabled)
  * </ul>
  *
