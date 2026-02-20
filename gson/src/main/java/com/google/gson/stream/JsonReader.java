@@ -16,10 +16,7 @@
 
 package com.google.gson.stream;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.Strictness;
-import com.google.gson.TypeAdapter;
 import com.google.gson.internal.JsonReaderInternalAccess;
 import com.google.gson.internal.TroubleshootingGuide;
 import com.google.gson.internal.bind.JsonTreeReader;
@@ -73,10 +70,12 @@ import java.util.Objects;
  *   <li>{@link #setMultiTopLevelValuesAllowed(boolean)}, the default is {@code false}
  *   <li>{@link #setNestingLimit(int)}, the default is {@value #DEFAULT_NESTING_LIMIT}
  *   <li>{@link #setStrictness(Strictness)}, the default is {@link Strictness#LEGACY_STRICT}
+ *   <li>{@link #setNestingLimit(int)}, the default is {@value #DEFAULT_NESTING_LIMIT}
  * </ul>
  *
- * The default configuration of {@code JsonReader} instances used internally by the {@link Gson}
- * class differs, and can be adjusted with the various {@link GsonBuilder} methods.
+ * The default configuration of {@code JsonReader} instances used internally by the {@link
+ * com.google.gson.Gson} class differs, and can be adjusted with the various {@link
+ * com.google.gson.GsonBuilder} methods.
  *
  * <h2>Example</h2>
  *
@@ -455,12 +454,12 @@ public class JsonReader implements Closeable {
    * fail at the inner {@code [true]}.
    *
    * <p>The nesting limit can help to protect against a {@link StackOverflowError} when recursive
-   * {@link TypeAdapter} implementations process deeply nested JSON data.
+   * {@link com.google.gson.TypeAdapter} implementations process deeply nested JSON data.
    *
    * <p>The default nesting limit is {@value #DEFAULT_NESTING_LIMIT}.
    *
    * @throws IllegalArgumentException if the nesting limit is negative.
-   * @since $next-version$
+   * @since 2.12.0
    * @see #getNestingLimit()
    */
   public final void setNestingLimit(int limit) {
@@ -473,7 +472,7 @@ public class JsonReader implements Closeable {
   /**
    * Returns the nesting limit of this reader.
    *
-   * @since $next-version$
+   * @since 2.12.0
    * @see #setNestingLimit(int)
    */
   public final int getNestingLimit() {
@@ -619,7 +618,8 @@ public class JsonReader implements Closeable {
       int c = nextNonWhitespace(true);
       switch (c) {
         case ']':
-          return peeked = PEEKED_END_ARRAY;
+          peeked = PEEKED_END_ARRAY;
+          return peeked;
         case ';':
           checkLenient(); // fall-through
         case ',':
@@ -634,7 +634,8 @@ public class JsonReader implements Closeable {
         int c = nextNonWhitespace(true);
         switch (c) {
           case '}':
-            return peeked = PEEKED_END_OBJECT;
+            peeked = PEEKED_END_OBJECT;
+            return peeked;
           case ';':
             checkLenient(); // fall-through
           case ',':
@@ -646,13 +647,16 @@ public class JsonReader implements Closeable {
       int c = nextNonWhitespace(true);
       switch (c) {
         case '"':
-          return peeked = PEEKED_DOUBLE_QUOTED_NAME;
+          peeked = PEEKED_DOUBLE_QUOTED_NAME;
+          return peeked;
         case '\'':
           checkLenient();
-          return peeked = PEEKED_SINGLE_QUOTED_NAME;
+          peeked = PEEKED_SINGLE_QUOTED_NAME;
+          return peeked;
         case '}':
           if (peekStack != JsonScope.NONEMPTY_OBJECT) {
-            return peeked = PEEKED_END_OBJECT;
+            peeked = PEEKED_END_OBJECT;
+            return peeked;
           } else {
             throw syntaxError("Expected name");
           }
@@ -660,7 +664,8 @@ public class JsonReader implements Closeable {
           checkLenient();
           pos--; // Don't consume the first character in an unquoted string.
           if (isLiteral((char) c)) {
-            return peeked = PEEKED_UNQUOTED_NAME;
+            peeked = PEEKED_UNQUOTED_NAME;
+            return peeked;
           } else {
             throw syntaxError("Expected name");
           }
@@ -689,7 +694,8 @@ public class JsonReader implements Closeable {
     } else if (peekStack == JsonScope.NONEMPTY_DOCUMENT) {
       int c = nextNonWhitespace(false);
       if (c == -1) {
-        return peeked = PEEKED_EOF;
+        peeked = PEEKED_EOF;
+        return peeked;
       } else if (!multiTopLevelValuesEnabled) {
         throw new MalformedJsonException(
             "Multiple top-level values support has not been enabled, use"
@@ -705,28 +711,34 @@ public class JsonReader implements Closeable {
     switch (c) {
       case ']':
         if (peekStack == JsonScope.EMPTY_ARRAY) {
-          return peeked = PEEKED_END_ARRAY;
+          peeked = PEEKED_END_ARRAY;
+          return peeked;
         }
-        // fall-through to handle ",]"
+      // fall-through to handle ",]"
       case ';':
       case ',':
         // In lenient mode, a 0-length literal in an array means 'null'.
         if (peekStack == JsonScope.EMPTY_ARRAY || peekStack == JsonScope.NONEMPTY_ARRAY) {
           checkLenient();
           pos--;
-          return peeked = PEEKED_NULL;
+          peeked = PEEKED_NULL;
+          return peeked;
         } else {
           throw syntaxError("Unexpected value");
         }
       case '\'':
         checkLenient();
-        return peeked = PEEKED_SINGLE_QUOTED;
+        peeked = PEEKED_SINGLE_QUOTED;
+        return peeked;
       case '"':
-        return peeked = PEEKED_DOUBLE_QUOTED;
+        peeked = PEEKED_DOUBLE_QUOTED;
+        return peeked;
       case '[':
-        return peeked = PEEKED_BEGIN_ARRAY;
+        peeked = PEEKED_BEGIN_ARRAY;
+        return peeked;
       case '{':
-        return peeked = PEEKED_BEGIN_OBJECT;
+        peeked = PEEKED_BEGIN_OBJECT;
+        return peeked;
       default:
         pos--; // Don't consume the first character in a literal value.
     }
@@ -746,7 +758,8 @@ public class JsonReader implements Closeable {
     }
 
     checkLenient();
-    return peeked = PEEKED_UNQUOTED;
+    peeked = PEEKED_UNQUOTED;
+    return peeked;
   }
 
   private int peekKeyword() throws IOException {
@@ -795,7 +808,8 @@ public class JsonReader implements Closeable {
 
     // We've found the keyword followed either by EOF or by a non-literal character.
     pos += length;
-    return peeked = peeking;
+    peeked = peeking;
+    return peeked;
   }
 
   private int peekNumber() throws IOException {
@@ -897,12 +911,14 @@ public class JsonReader implements Closeable {
         && (value != 0 || !negative)) {
       peekedLong = negative ? value : -value;
       pos += i;
-      return peeked = PEEKED_LONG;
+      peeked = PEEKED_LONG;
+      return peeked;
     } else if (last == NUMBER_CHAR_DIGIT
         || last == NUMBER_CHAR_FRACTION_DIGIT
         || last == NUMBER_CHAR_EXP_DIGIT) {
       peekedNumberLength = i;
-      return peeked = PEEKED_NUMBER;
+      peeked = PEEKED_NUMBER;
+      return peeked;
     } else {
       return PEEKED_NONE;
     }
@@ -1807,7 +1823,7 @@ public class JsonReader implements Closeable {
         }
         lineNumber++;
         lineStart = pos;
-        // fall-through
+      // fall-through
 
       case '\'':
         if (strictness == Strictness.STRICT) {

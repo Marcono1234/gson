@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.MapMaker;
+import com.google.common.reflect.TypeToken;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
@@ -44,6 +45,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
@@ -194,7 +196,7 @@ public class ProtoTypeAdapter implements JsonSerializer<Message>, JsonDeserializ
      * ...will be serialized as '{@code bar}' if {@code shouldUseJsonNameFieldOption} is set to
      * {@code true} and the '{@code serialized_name}' annotation is added to the adapter.
      *
-     * @since $next-version$
+     * @since 2.12.0
      */
     @CanIgnoreReturnValue
     public Builder setShouldUseJsonNameFieldOption(boolean shouldUseJsonNameFieldOption) {
@@ -331,8 +333,15 @@ public class ProtoTypeAdapter implements JsonSerializer<Message>, JsonDeserializ
             String protoArrayFieldName =
                 protoFormat.to(CaseFormat.LOWER_CAMEL, fieldDescriptor.getName()) + "_";
             Field protoArrayField = protoClass.getDeclaredField(protoArrayFieldName);
-            Type protoArrayFieldType = protoArrayField.getGenericType();
-            fieldValue = context.deserialize(jsonElement, protoArrayFieldType);
+
+            @SuppressWarnings("unchecked")
+            TypeToken<? extends List<?>> protoArrayFieldType =
+                (TypeToken<? extends List<?>>) TypeToken.of(protoArrayField.getGenericType());
+            // Get the type as `List<E>`, otherwise type might be Protobuf internal interface for
+            // which no instance can be created
+            Type protoArrayResolvedFieldType =
+                protoArrayFieldType.getSupertype(List.class).getType();
+            fieldValue = context.deserialize(jsonElement, protoArrayResolvedFieldType);
             protoBuilder.setField(fieldDescriptor, fieldValue);
           } else {
             Object field = defaultInstance.getField(fieldDescriptor);

@@ -20,8 +20,6 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.gson.internal.Streams;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
-import java.io.Reader;
-import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
@@ -46,7 +44,7 @@ import java.math.BigInteger;
  *       <pre>
  * JsonObject jsonObject = JsonParser.parseString("{}").getAsJsonObject();
  * </pre>
- *   <li>{@link Gson#fromJson(Reader, Class) Gson.fromJson(..., JsonElement.class)}<br>
+ *   <li>{@link Gson#fromJson(java.io.Reader, Class) Gson.fromJson(..., JsonElement.class)}<br>
  *       It is possible to directly specify a {@code JsonElement} subclass, for example:
  *       <pre>
  * JsonObject jsonObject = gson.fromJson("{}", JsonObject.class);
@@ -422,13 +420,13 @@ public abstract class JsonElement {
   @Override
   public String toString() {
     try {
-      StringWriter stringWriter = new StringWriter();
-      JsonWriter jsonWriter = new JsonWriter(stringWriter);
+      StringBuilder stringBuilder = new StringBuilder();
+      JsonWriter jsonWriter = new JsonWriter(Streams.writerForAppendable(stringBuilder));
       // Make writer lenient because toString() must not fail, even if for example JsonPrimitive
       // contains NaN
       jsonWriter.setStrictness(Strictness.LENIENT);
       Streams.write(this, jsonWriter);
-      return stringWriter.toString();
+      return stringBuilder.toString();
     } catch (IOException e) {
       throw new AssertionError(e);
     }

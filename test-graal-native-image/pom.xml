@@ -19,7 +19,7 @@
   <parent>
     <groupId>com.google.code.gson</groupId>
     <artifactId>gson-parent</artifactId>
-    <version>2.11.1-SNAPSHOT</version>
+    <version>2.13.3-SNAPSHOT</version>
   </parent>
   <artifactId>test-graal-native-image</artifactId>
   <name>Test: GraalVM Native Image</name>
@@ -33,6 +33,18 @@
     <!-- Overwrite property from parent -->
     <gson.isTestModule>true</gson.isTestModule>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>6.0.2</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>
@@ -48,7 +60,14 @@
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
-      <version>5.11.3</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- Explicitly need to define junit-platform-launcher dependency to avoid incompatibilities
+      with native-maven-plugin, see
+      https://github.com/graalvm/native-build-tools/issues/706 -->
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-launcher</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -118,7 +137,7 @@
           <plugin>
             <groupId>org.graalvm.buildtools</groupId>
             <artifactId>native-maven-plugin</artifactId>
-            <version>0.10.3</version>
+            <version>0.11.4</version>
             <extensions>true</extensions>
             <executions>
               <execution>
@@ -128,6 +147,11 @@
                 </goals>
                 <configuration>
                   <quickBuild>true</quickBuild>
+                  <buildArgs>
+                    <!-- Show stack traces to make troubleshooting build issues easier -->
+                    <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                    <buildArg>--initialize-at-build-time=org.junit.jupiter.engine.discovery.MethodSegmentResolver</buildArg>
+                  </buildArgs>
                 </configuration>
               </execution>
             </executions>

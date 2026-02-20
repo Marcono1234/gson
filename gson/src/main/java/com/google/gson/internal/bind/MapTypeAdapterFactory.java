@@ -22,8 +22,8 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
-import com.google.gson.internal.$Gson$Types;
 import com.google.gson.internal.ConstructorConstructor;
+import com.google.gson.internal.GsonTypes;
 import com.google.gson.internal.JsonReaderInternalAccess;
 import com.google.gson.internal.ObjectConstructor;
 import com.google.gson.internal.Streams;
@@ -131,16 +131,23 @@ public final class MapTypeAdapterFactory implements TypeAdapterFactory {
       return null;
     }
 
-    Type[] keyAndValueTypes = $Gson$Types.getMapKeyAndValueTypes(type, rawType);
-    TypeAdapter<?> keyAdapter = getKeyAdapter(gson, keyAndValueTypes[0]);
-    TypeAdapter<?> valueAdapter = gson.getAdapter(TypeToken.get(keyAndValueTypes[1]));
-    ObjectConstructor<T> constructor = constructorConstructor.get(typeToken);
+    Type[] keyAndValueTypes = GsonTypes.getMapKeyAndValueTypes(type, rawType);
+    Type keyType = keyAndValueTypes[0];
+    Type valueType = keyAndValueTypes[1];
+    TypeAdapter<?> keyAdapter = getKeyAdapter(gson, keyType);
+    TypeAdapter<?> wrappedKeyAdapter =
+        new TypeAdapterRuntimeTypeWrapper<>(gson, keyAdapter, keyType);
+    TypeAdapter<?> valueAdapter = gson.getAdapter(TypeToken.get(valueType));
+    TypeAdapter<?> wrappedValueAdapter =
+        new TypeAdapterRuntimeTypeWrapper<>(gson, valueAdapter, valueType);
+    // Don't allow Unsafe usage to create instance; instances might be in broken state and calling
+    // Map methods could lead to confusing exceptions
+    boolean allowUnsafe = false;
+    ObjectConstructor<T> constructor = constructorConstructor.get(typeToken, allowUnsafe);
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     // we don't define a type parameter for the key or value types
-    TypeAdapter<T> result =
-        new Adapter(
-            gson, keyAndValueTypes[0], keyAdapter, keyAndValueTypes[1], valueAdapter, constructor);
+    TypeAdapter<T> result = new Adapter(wrappedKeyAdapter, wrappedValueAdapter, constructor);
     return result;
   }
 
@@ -156,16 +163,12 @@ public final class MapTypeAdapterFactory implements TypeAdapterFactory {
     private final TypeAdapter<V> valueTypeAdapter;
     private final ObjectConstructor<? extends Map<K, V>> constructor;
 
-    public Adapter(
-        Gson context,
-        Type keyType,
+    Adapter(
         TypeAdapter<K> keyTypeAdapter,
-        Type valueType,
         TypeAdapter<V> valueTypeAdapter,
         ObjectConstructor<? extends Map<K, V>> constructor) {
-      this.keyTypeAdapter = new TypeAdapterRuntimeTypeWrapper<>(context, keyTypeAdapter, keyType);
-      this.valueTypeAdapter =
-          new TypeAdapterRuntimeTypeWrapper<>(context, valueTypeAdapter, valueType);
+      this.keyTypeAdapter = keyTypeAdapter;
+      this.valueTypeAdapter = valueTypeAdapter;
       this.constructor = constructor;
     }
 

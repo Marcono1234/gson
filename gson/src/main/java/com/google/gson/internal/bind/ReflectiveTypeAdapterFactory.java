@@ -27,9 +27,9 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
-import com.google.gson.internal.$Gson$Types;
 import com.google.gson.internal.ConstructorConstructor;
 import com.google.gson.internal.Excluder;
+import com.google.gson.internal.GsonTypes;
 import com.google.gson.internal.ObjectConstructor;
 import com.google.gson.internal.Primitives;
 import com.google.gson.internal.ReflectionAccessFilterHelper;
@@ -84,21 +84,25 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
   /** first element holds the default name */
   @SuppressWarnings("MixedMutabilityReturnType")
   private List<String> getFieldNames(Field f) {
+
+    String fieldName;
+    List<String> alternates;
     SerializedName annotation = f.getAnnotation(SerializedName.class);
     if (annotation == null) {
-      String name = fieldNamingPolicy.translateName(f);
-      return Collections.singletonList(name);
+      fieldName = fieldNamingPolicy.translateName(f);
+      alternates = fieldNamingPolicy.alternateNames(f);
+    } else {
+      fieldName = annotation.value();
+      alternates = Arrays.asList(annotation.alternate());
     }
 
-    String serializedName = annotation.value();
-    String[] alternates = annotation.alternate();
-    if (alternates.length == 0) {
-      return Collections.singletonList(serializedName);
+    if (alternates.isEmpty()) {
+      return Collections.singletonList(fieldName);
     }
 
-    List<String> fieldNames = new ArrayList<>(alternates.length + 1);
-    fieldNames.add(serializedName);
-    Collections.addAll(fieldNames, alternates);
+    List<String> fieldNames = new ArrayList<>(alternates.size() + 1);
+    fieldNames.add(fieldName);
+    fieldNames.addAll(alternates);
     return fieldNames;
   }
 
@@ -156,7 +160,7 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
       return adapter;
     }
 
-    ObjectConstructor<T> constructor = constructorConstructor.get(type);
+    ObjectConstructor<T> constructor = constructorConstructor.get(type, true);
     return new FieldReflectionAdapter<>(
         constructor, getBoundFields(gson, type, raw, blockInaccessible, false));
   }
@@ -282,17 +286,14 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
   }
 
   private static class FieldsData {
-    public static final FieldsData EMPTY =
-        new FieldsData(
-            Collections.<String, BoundField>emptyMap(), Collections.<BoundField>emptyList());
+    static final FieldsData EMPTY = new FieldsData(Collections.emptyMap(), Collections.emptyList());
 
     /** Maps from JSON member name to field */
-    public final Map<String, BoundField> deserializedFields;
+    final Map<String, BoundField> deserializedFields;
 
-    public final List<BoundField> serializedFields;
+    final List<BoundField> serializedFields;
 
-    public FieldsData(
-        Map<String, BoundField> deserializedFields, List<BoundField> serializedFields) {
+    FieldsData(Map<String, BoundField> deserializedFields, List<BoundField> serializedFields) {
       this.deserializedFields = deserializedFields;
       this.serializedFields = serializedFields;
     }
@@ -388,7 +389,7 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
           ReflectionHelper.makeAccessible(field);
         }
 
-        Type fieldType = $Gson$Types.resolve(type.getType(), raw, field.getGenericType());
+        Type fieldType = GsonTypes.resolve(type.getType(), raw, field.getGenericType());
         List<String> fieldNames = getFieldNames(field);
         String serializedName = fieldNames.get(0);
         BoundField boundField =
@@ -418,7 +419,7 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
           }
         }
       }
-      type = TypeToken.get($Gson$Types.resolve(type.getType(), raw, raw.getGenericSuperclass()));
+      type = TypeToken.get(GsonTypes.resolve(type.getType(), raw, raw.getGenericSuperclass()));
       raw = type.getRawType();
     }
     return new FieldsData(deserializedFields, new ArrayList<>(serializedFields.values()));

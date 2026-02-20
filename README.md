@@ -12,6 +12,13 @@ There are a few open-source projects that can convert Java objects to JSON. Howe
 > Gson's main focus is on Java. Using it with other JVM languages such as Kotlin or Scala might work fine in many cases, but language-specific features such as Kotlin's non-`null` types or constructors with default arguments are not supported. This can lead to confusing and incorrect behavior.\
 > When using languages other than Java, prefer a JSON library with explicit support for that language.
 
+> [!IMPORTANT]\
+> Gson is not a recommended library for interacting with JSON on Android. The open-ended reflection in the Gson runtime doesn't play nicely with shrinking/optimization/obfuscation passes that Android release apps should perform.\
+> If your app or library may be running on Android, consider using [Kotlin Serialization](https://github.com/Kotlin/kotlinx.serialization/blob/master/docs/basic-serialization.md#basics) or [Moshi's Codegen](https://github.com/square/moshi?tab=readme-ov-file#codegen),
+> which use code generation instead of reflection. This avoids Gson's runtime crashes when optimizations are applied (usually due to the fields missing or being obfuscated), and results in faster performance on Android devices.
+> The Moshi APIs may be more familiar to users who already know Gson.
+> If you still want to use Gson and attempt to avoid these crashes, you can see how to do so [here](Troubleshooting.md#proguard-r8).
+
 ### Goals
   * Provide simple `toJson()` and `fromJson()` methods to convert Java objects to JSON and vice-versa
   * Allow pre-existing unmodifiable objects to be converted to and from JSON
@@ -24,7 +31,7 @@ There are a few open-source projects that can convert Java objects to JSON. Howe
 Gradle:
 ```gradle
 dependencies {
-  implementation 'com.google.code.gson:gson:2.11.0'
+  implementation 'com.google.code.gson:gson:2.13.2'
 }
 ```
 
@@ -33,7 +40,7 @@ Maven:
 <dependency>
   <groupId>com.google.code.gson</groupId>
   <artifactId>gson</artifactId>
-  <version>2.11.0</version>
+  <version>2.13.2</version>
 </dependency>
 ```
 
@@ -77,6 +84,10 @@ Older Gson versions may also support lower API levels, however this has not been
 
 Please use the ['gson' tag on StackOverflow](https://stackoverflow.com/questions/tagged/gson), [GitHub Discussions](https://github.com/google/gson/discussions) or the [google-gson Google group](https://groups.google.com/group/google-gson) to discuss Gson or to post questions.
 
+### ProGuard / R8
+
+See the details in the related section in the [Troubleshooting guide](Troubleshooting.md#proguard-r8).
+
 ### Related Content Created by Third Parties
   * [Gson Tutorial](https://www.studytrails.com/java/json/java-google-json-introduction/) by `StudyTrails`
   * [Gson Tutorial Series](https://futurestud.io/tutorials/gson-getting-started-with-java-json-serialization-deserialization) by `Future Studio`
@@ -89,7 +100,7 @@ Gson uses Maven to build the project:
 mvn clean verify
 ```
 
-JDK 11 or newer is required for building, JDK 17 or 21 is recommended. Newer JDKs are currently not supported for building (but are supported when _using_ Gson).
+JDK 17 or newer is required for building, JDK 21 is recommended. Newer JDKs are currently not supported for building (but are supported when _using_ Gson).
 
 ### Contributing
 

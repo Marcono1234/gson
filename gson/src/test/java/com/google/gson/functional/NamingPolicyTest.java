@@ -26,6 +26,7 @@ import com.google.gson.annotations.SerializedName;
 import com.google.gson.common.TestTypes.ClassWithSerializedNameFields;
 import com.google.gson.common.TestTypes.StringWrapper;
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Locale;
 import org.junit.Before;
 import org.junit.Test;
@@ -237,6 +238,78 @@ public class NamingPolicyTest {
     assertThat(new Gson().toJson(new AtName())).isEqualTo("{\"@foo\":\"bar\"}");
   }
 
+  @Test
+  public void testGsonWithNameDeserialiation() {
+    Gson gson =
+        builder
+            .setFieldNamingStrategy(
+                new FieldNamingStrategy() {
+
+                  @Override
+                  public String translateName(Field f) {
+                    return "primary-name";
+                  }
+
+                  @Override
+                  public List<String> alternateNames(Field f) {
+                    return List.of("alternate-name");
+                  }
+                })
+            .create();
+    String target = "{\"primary-name\":\"someValue\"}";
+    StringWrapper deserializedObject = gson.fromJson(target, StringWrapper.class);
+    assertThat(deserializedObject.someConstantStringInstanceField).isEqualTo("someValue");
+  }
+
+  @Test
+  public void testGsonWithAlternateNamesDeserialiation() {
+    Gson gson =
+        builder
+            .setFieldNamingStrategy(
+                new FieldNamingStrategy() {
+
+                  @Override
+                  public String translateName(Field f) {
+                    return "primary-name";
+                  }
+
+                  @Override
+                  public List<String> alternateNames(Field f) {
+                    return List.of("alternate-name");
+                  }
+                })
+            .create();
+    String target = "{\"alternate-name\":\"someValue\"}";
+    StringWrapper deserializedObject = gson.fromJson(target, StringWrapper.class);
+    assertThat(deserializedObject.someConstantStringInstanceField).isEqualTo("someValue");
+  }
+
+  @Test
+  public void testGsonWithAlternateNamesSerialization() {
+    Gson gson =
+        builder
+            .setFieldNamingStrategy(
+                new FieldNamingStrategy() {
+
+                  @Override
+                  public String translateName(Field f) {
+                    return "some-constant-string-instance-field";
+                  }
+
+                  @Override
+                  public List<String> alternateNames(Field f) {
+                    return List.of("alternate-name");
+                  }
+                })
+            .create();
+    StringWrapper target = new StringWrapper("blah");
+    assertThat(gson.toJson(target))
+        .isEqualTo(
+            "{\"some-constant-string-instance-field\":\""
+                + target.someConstantStringInstanceField
+                + "\"}");
+  }
+
   static final class AtName {
     @SerializedName("@foo")
     String f = "bar";
@@ -251,20 +324,20 @@ public class NamingPolicyTest {
 
   @SuppressWarnings("unused")
   private static class ClassWithDuplicateFields {
-    public Integer a;
+    Integer a;
 
     @SerializedName("a")
-    public Double b;
+    Double b;
 
-    public ClassWithDuplicateFields(Integer a) {
+    ClassWithDuplicateFields(Integer a) {
       this(a, null);
     }
 
-    public ClassWithDuplicateFields(Double b) {
+    ClassWithDuplicateFields(Double b) {
       this(null, b);
     }
 
-    public ClassWithDuplicateFields(Integer a, Double b) {
+    ClassWithDuplicateFields(Integer a, Double b) {
       this.a = a;
       this.b = b;
     }
@@ -272,7 +345,7 @@ public class NamingPolicyTest {
 
   private static class ClassWithComplexFieldName {
     @SerializedName("@value\"_s$\\")
-    public final long value;
+    final long value;
 
     ClassWithComplexFieldName(long value) {
       this.value = value;
@@ -281,9 +354,9 @@ public class NamingPolicyTest {
 
   @SuppressWarnings("unused")
   private static class ClassWithTwoFields {
-    public int a;
-    public int b;
+    int a;
+    int b;
 
-    public ClassWithTwoFields() {}
+    ClassWithTwoFields() {}
   }
 }

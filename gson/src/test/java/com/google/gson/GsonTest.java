@@ -28,10 +28,6 @@ import com.google.gson.stream.MalformedJsonException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.text.DateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -53,6 +49,17 @@ public final class GsonTest {
   private static final ToNumberStrategy CUSTOM_NUMBER_TO_NUMBER_STRATEGY =
       ToNumberPolicy.LAZILY_PARSED_NUMBER;
 
+  private static Gson createGson() {
+    GsonBuilder gsonBuilder = new GsonBuilder();
+    gsonBuilder.excluder = CUSTOM_EXCLUDER;
+    gsonBuilder.fieldNamingPolicy = CUSTOM_FIELD_NAMING_STRATEGY;
+    gsonBuilder.serializeNulls = true;
+    gsonBuilder.disableHtmlEscaping();
+    gsonBuilder.objectToNumberStrategy = CUSTOM_OBJECT_TO_NUMBER_STRATEGY;
+    gsonBuilder.numberToNumberStrategy = CUSTOM_NUMBER_TO_NUMBER_STRATEGY;
+    return gsonBuilder.create();
+  }
+
   @Test
   public void testStrictnessDefault() {
     assertThat(new Gson().strictness).isNull();
@@ -60,29 +67,7 @@ public final class GsonTest {
 
   @Test
   public void testOverridesDefaultExcluder() {
-    Gson gson =
-        new Gson(
-            CUSTOM_EXCLUDER,
-            CUSTOM_FIELD_NAMING_STRATEGY,
-            new HashMap<>(),
-            true,
-            false,
-            true,
-            false,
-            FormattingStyle.PRETTY,
-            Strictness.LENIENT,
-            false,
-            true,
-            LongSerializationPolicy.DEFAULT,
-            null,
-            DateFormat.DEFAULT,
-            DateFormat.DEFAULT,
-            new ArrayList<>(),
-            new ArrayList<>(),
-            new ArrayList<>(),
-            CUSTOM_OBJECT_TO_NUMBER_STRATEGY,
-            CUSTOM_NUMBER_TO_NUMBER_STRATEGY,
-            Collections.emptyList());
+    Gson gson = createGson();
 
     assertThat(gson.excluder).isEqualTo(CUSTOM_EXCLUDER);
     assertThat(gson.fieldNamingStrategy()).isEqualTo(CUSTOM_FIELD_NAMING_STRATEGY);
@@ -92,29 +77,7 @@ public final class GsonTest {
 
   @Test
   public void testClonedTypeAdapterFactoryListsAreIndependent() {
-    Gson original =
-        new Gson(
-            CUSTOM_EXCLUDER,
-            CUSTOM_FIELD_NAMING_STRATEGY,
-            new HashMap<>(),
-            true,
-            false,
-            true,
-            false,
-            FormattingStyle.PRETTY,
-            Strictness.LENIENT,
-            false,
-            true,
-            LongSerializationPolicy.DEFAULT,
-            null,
-            DateFormat.DEFAULT,
-            DateFormat.DEFAULT,
-            new ArrayList<>(),
-            new ArrayList<>(),
-            new ArrayList<>(),
-            CUSTOM_OBJECT_TO_NUMBER_STRATEGY,
-            CUSTOM_NUMBER_TO_NUMBER_STRATEGY,
-            Collections.emptyList());
+    Gson original = createGson();
 
     Gson clone =
         original.newBuilder().registerTypeAdapter(int.class, new TestTypeAdapter()).create();
@@ -132,6 +95,61 @@ public final class GsonTest {
     public Object read(JsonReader in) {
       return null;
     }
+  }
+
+  @Test
+  public void testFromJson_WrongResultType() {
+    class IntegerAdapter extends TypeAdapter<Integer> {
+      @Override
+      public Integer read(JsonReader in) throws IOException {
+        in.skipValue();
+        return 3;
+      }
+
+      @Override
+      public void write(JsonWriter out, Integer value) {
+        throw new AssertionError("not needed for test");
+      }
+
+      @Override
+      public String toString() {
+        return "custom-adapter";
+      }
+    }
+
+    Gson gson = new GsonBuilder().registerTypeAdapter(Boolean.class, new IntegerAdapter()).create();
+    // Use `Class<?>` here to avoid that the JVM itself creates the ClassCastException (though the
+    // check below for the custom message would detect that as well)
+    Class<?> deserializedClass = Boolean.class;
+    var exception =
+        assertThrows(ClassCastException.class, () -> gson.fromJson("true", deserializedClass));
+    assertThat(exception)
+        .hasMessageThat()
+        .isEqualTo(
+            "Type adapter 'custom-adapter' returned wrong type; requested class java.lang.Boolean"
+                + " but got instance of class java.lang.Integer\n"
+                + "Verify that the adapter was registered for the correct type.");
+
+    // Returning boxed primitive should be allowed (e.g. returning `Integer` for `int`)
+    Gson gson2 = new GsonBuilder().registerTypeAdapter(int.class, new IntegerAdapter()).create();
+    assertThat(gson2.fromJson("0", int.class)).isEqualTo(3);
+
+    class NullAdapter extends TypeAdapter<Object> {
+      @Override
+      public Object read(JsonReader in) throws IOException {
+        in.skipValue();
+        return null;
+      }
+
+      @Override
+      public void write(JsonWriter out, Object value) {
+        throw new AssertionError("not needed for test");
+      }
+    }
+
+    // Returning `null` should be allowed
+    Gson gson3 = new GsonBuilder().registerTypeAdapter(Boolean.class, new NullAdapter()).create();
+    assertThat(gson3.fromJson("true", Boolean.class)).isNull();
   }
 
   @Test
@@ -613,11 +631,12 @@ public final class GsonTest {
 
     final String s;
 
+    @SuppressWarnings("EffectivelyPrivate")
     public CustomClass3(String s) {
       this.s = s;
     }
 
-    @SuppressWarnings("unused") // called by Gson
+    @SuppressWarnings({"unused", "EffectivelyPrivate"}) // called by Gson
     public CustomClass3() {
       this(NO_ARG_CONSTRUCTOR_VALUE);
     }
