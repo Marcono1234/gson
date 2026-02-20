@@ -1464,7 +1464,7 @@ public final class JsonReaderTest {
         .hasMessageThat()
         .isEqualTo(
             "Multiple top-level values support has not been enabled, use"
-                + " `JsonReader.setMultiTopLevelValuesAllowed(true)`, at line 1 column 5 path $");
+                + " `JsonReader.setAllowingMultipleValues(true)`, at line 1 column 5 path $");
 
     // But trailing whitespace is allowed
     JsonReader reader2 = new JsonReader(reader("[]   \n \t \r "));
@@ -1495,40 +1495,40 @@ public final class JsonReaderTest {
         .hasMessageThat()
         .isEqualTo(
             "Multiple top-level values support has not been enabled, use"
-                + " `JsonReader.setMultiTopLevelValuesAllowed(true)`, at line 1 column 5 path $");
+                + " `JsonReader.setAllowingMultipleValues(true)`, at line 1 column 5 path $");
   }
 
   @Test
   public void testMultipleTopLevelValuesStrictness() {
     JsonReader reader = new JsonReader(reader("[]"));
-    assertThat(reader.isMultiTopLevelValuesAllowed()).isFalse();
+    assertThat(reader.isAllowingMultipleValues()).isFalse();
 
     reader.setStrictness(Strictness.STRICT);
-    assertThat(reader.isMultiTopLevelValuesAllowed()).isFalse();
+    assertThat(reader.isAllowingMultipleValues()).isFalse();
 
     reader.setStrictness(Strictness.LEGACY_STRICT);
-    assertThat(reader.isMultiTopLevelValuesAllowed()).isFalse();
+    assertThat(reader.isAllowingMultipleValues()).isFalse();
 
     reader.setStrictness(Strictness.LENIENT);
-    assertThat(reader.isMultiTopLevelValuesAllowed()).isTrue();
+    assertThat(reader.isAllowingMultipleValues()).isTrue();
 
     reader.setStrictness(Strictness.STRICT);
-    assertThat(reader.isMultiTopLevelValuesAllowed()).isFalse();
+    assertThat(reader.isAllowingMultipleValues()).isFalse();
     // Verify that it can be enabled independently of Strictness
-    reader.setMultiTopLevelValuesAllowed(true);
+    reader.setAllowingMultipleValues(true);
     assertThat(reader.getStrictness()).isEqualTo(Strictness.STRICT);
-    assertThat(reader.isMultiTopLevelValuesAllowed()).isTrue();
+    assertThat(reader.isAllowingMultipleValues()).isTrue();
   }
 
   /**
    * Tests multiple top-level values, enabled with {@link
-   * JsonReader#setMultiTopLevelValuesAllowed(boolean)}.
+   * JsonReader#setAllowingMultipleValues(boolean)}.
    */
   @Test
   public void testMultipleTopLevelValuesEnabled() throws IOException {
     JsonReader reader = new JsonReader(reader("[]{}"));
     reader.setStrictness(Strictness.STRICT);
-    reader.setMultiTopLevelValuesAllowed(true);
+    reader.setAllowingMultipleValues(true);
 
     reader.beginArray();
     reader.endArray();
@@ -1538,7 +1538,7 @@ public final class JsonReaderTest {
 
     reader = new JsonReader(reader("true\n  \n1"));
     reader.setStrictness(Strictness.STRICT);
-    reader.setMultiTopLevelValuesAllowed(true);
+    reader.setAllowingMultipleValues(true);
 
     assertThat(reader.nextBoolean()).isTrue();
     assertThat(reader.nextInt()).isEqualTo(1);
@@ -1550,12 +1550,12 @@ public final class JsonReaderTest {
     JsonReader reader = new JsonReader(reader("[]{}"));
     // Normally lenient mode allows multiple top-level values
     reader.setStrictness(Strictness.LENIENT);
-    assertThat(reader.isMultiTopLevelValuesAllowed()).isTrue();
+    assertThat(reader.isAllowingMultipleValues()).isTrue();
 
     // But explicitly disable it
-    reader.setMultiTopLevelValuesAllowed(false);
+    reader.setAllowingMultipleValues(false);
     assertThat(reader.getStrictness()).isEqualTo(Strictness.LENIENT);
-    assertThat(reader.isMultiTopLevelValuesAllowed()).isFalse();
+    assertThat(reader.isAllowingMultipleValues()).isFalse();
 
     reader.beginArray();
     reader.endArray();
@@ -1565,7 +1565,7 @@ public final class JsonReaderTest {
         .hasMessageThat()
         .isEqualTo(
             "Multiple top-level values support has not been enabled, use"
-                + " `JsonReader.setMultiTopLevelValuesAllowed(true)`, at line 1 column 4 path $");
+                + " `JsonReader.setAllowingMultipleValues(true)`, at line 1 column 4 path $");
   }
 
   @Test

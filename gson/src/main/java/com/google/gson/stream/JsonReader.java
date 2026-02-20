@@ -67,7 +67,7 @@ import java.util.Objects;
  * The behavior of this reader can be customized with the following methods:
  *
  * <ul>
- *   <li>{@link #setMultiTopLevelValuesAllowed(boolean)}, the default is {@code false}
+ *   <li>{@link #setAllowingMultipleValues(boolean)}, the default is {@code false}
  *   <li>{@link #setNestingLimit(int)}, the default is {@value #DEFAULT_NESTING_LIMIT}
  *   <li>{@link #setStrictness(Strictness)}, the default is {@link Strictness#LEGACY_STRICT}
  *   <li>{@link #setNestingLimit(int)}, the default is {@value #DEFAULT_NESTING_LIMIT}
@@ -257,7 +257,7 @@ public class JsonReader implements Closeable {
   static final int DEFAULT_NESTING_LIMIT = 255;
   private int nestingLimit = DEFAULT_NESTING_LIMIT;
 
-  private boolean multiTopLevelValuesEnabled = false;
+  private boolean multiTopLevelValuesAllowed = false;
 
   static final int BUFFER_SIZE = 1024;
 
@@ -383,7 +383,7 @@ public class JsonReader implements Closeable {
    *             {@code ")]}'\n"}
    *         <li>Streams that include multiple top-level values. With legacy strict or strict
    *             parsing, each stream must contain exactly one top-level value. Can be enabled
-   *             independently using {@link #setMultiTopLevelValuesAllowed(boolean)}.
+   *             independently using {@link #setAllowingMultipleValues(boolean)}.
    *         <li>Numbers may be {@link Double#isNaN() NaNs} or {@link Double#isInfinite()
    *             infinities} represented by {@code NaN} and {@code (-)Infinity} respectively.
    *         <li>End of line comments starting with {@code //} or {@code #} and ending with a
@@ -406,7 +406,7 @@ public class JsonReader implements Closeable {
    */
   public final void setStrictness(Strictness strictness) {
     this.strictness = Objects.requireNonNull(strictness);
-    setMultiTopLevelValuesAllowed(strictness == Strictness.LENIENT);
+    setAllowingMultipleValues(strictness == Strictness.LENIENT);
   }
 
   /**
@@ -425,23 +425,23 @@ public class JsonReader implements Closeable {
    * but for some values this causes ambiguities, for example for JSON numbers as top-level values.
    *
    * <p>This setting overwrites and is overwritten by whether {@link #setStrictness(Strictness)}
-   * enabled support for multiple top-level values.
+   * allowed support for multiple top-level values.
    *
-   * @see #isMultiTopLevelValuesAllowed()
+   * @see #isAllowingMultipleValues()
    * @since $next-version$
    */
-  public final void setMultiTopLevelValuesAllowed(boolean enabled) {
-    this.multiTopLevelValuesEnabled = enabled;
+  public final void setAllowingMultipleValues(boolean allowed) {
+    this.multiTopLevelValuesAllowed = allowed;
   }
 
   /**
    * Returns whether multiple top-level values are allowed.
    *
-   * @see #setMultiTopLevelValuesAllowed(boolean)
+   * @see #setAllowingMultipleValues(boolean)
    * @since $next-version$
    */
-  public final boolean isMultiTopLevelValuesAllowed() {
-    return multiTopLevelValuesEnabled;
+  public final boolean isAllowingMultipleValues() {
+    return multiTopLevelValuesAllowed;
   }
 
   /**
@@ -696,10 +696,10 @@ public class JsonReader implements Closeable {
       if (c == -1) {
         peeked = PEEKED_EOF;
         return peeked;
-      } else if (!multiTopLevelValuesEnabled) {
+      } else if (!multiTopLevelValuesAllowed) {
         throw new MalformedJsonException(
             "Multiple top-level values support has not been enabled, use"
-                + " `JsonReader.setMultiTopLevelValuesAllowed(true)`,"
+                + " `JsonReader.setAllowingMultipleValues(true)`,"
                 + locationString());
       }
       pos--;
