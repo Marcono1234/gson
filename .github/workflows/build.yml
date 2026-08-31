@@ -30,11 +30,6 @@ jobs:
             # Exclude 'proto' module because protobuf-maven-plugin requires >= Java 17
             extra-mvn-args: -Denforcer.fail=false --projects '!test-graal-native-image,!proto'
           - java: 25
-            # Disable Enforcer check which (intentionally) prevents using JDK 25 for building
-            # Exclude 'test-shrinker' because ProGuard does not support JDK 25 yet, see
-            # https://github.com/Guardsquare/proguard/issues/481 and https://github.com/Guardsquare/proguard/issues/473
-            # TODO: Once ProGuard supports JDK 25, also remove the corresponding 'JDK25' profile in `gson/pom.xml`
-            extra-mvn-args: -Denforcer.fail=false --projects '!test-shrinker'
     runs-on: ubuntu-latest
 
     steps:
@@ -72,12 +67,7 @@ jobs:
     name: "GraalVM Native Image test (JDK ${{ matrix.java }})"
     strategy:
       matrix:
-        java: [ 21 ]
-        include:
-          - java: 25
-            # Disable Enforcer check which (intentionally) prevents using JDK 25 for building
-            # TODO: Remove this once JDK 25 is fully supported for building Gson
-            extra-mvn-args: -Denforcer.fail=false
+        java: [ 21, 25 ]
     runs-on: ubuntu-latest
 
     steps:
