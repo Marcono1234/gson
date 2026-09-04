@@ -21,6 +21,7 @@ import static org.junit.Assume.assumeTrue;
 
 import com.google.gson.JsonElement;
 import com.google.gson.Strictness;
+import com.google.gson.internal.JsonReaderInternalAccess;
 import com.google.gson.internal.Streams;
 import com.google.gson.internal.bind.JsonTreeReader;
 import java.io.IOException;
@@ -404,6 +405,22 @@ public class JsonReaderPathTest {
     reader.endObject();
     assertThat(reader.getPreviousPath()).isEqualTo("$");
     assertThat(reader.getPath()).isEqualTo("$");
+  }
+
+  @Test
+  public void promoteNameToValueUpdatesPath() throws IOException {
+    JsonReader reader = factory.create("{\"name\":\"value\"}");
+    reader.beginObject();
+    JsonReaderInternalAccess.INSTANCE.promoteNameToValue(reader);
+    String s1 = reader.nextString();
+    assertThat(s1).isEqualTo("name");
+    assertThat(reader.getPreviousPath()).isEqualTo("$.name");
+    assertThat(reader.getPath()).isEqualTo("$.name");
+    String s2 = reader.nextString();
+    assertThat(s2).isEqualTo("value");
+    assertThat(reader.getPreviousPath()).isEqualTo("$.name");
+    assertThat(reader.getPath()).isEqualTo("$.name");
+    reader.endObject();
   }
 
   public enum Factory {
