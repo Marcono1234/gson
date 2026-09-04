@@ -202,12 +202,38 @@ public class JavaTimeTest {
     roundTrip(zoneOffset, json);
   }
 
+  /**
+   * Asserts that the given {@code zoneId} is an instance of the JDK-internal {@code ZoneRegion}
+   * class.
+   */
+  private static void assertIsZoneRegion(ZoneId zoneId) {
+    assertThat(zoneId).isNotNull();
+    // To avoid relying too much on JDK internals, only verify that it is neither the base class nor
+    // the other public subclass
+    assertThat(zoneId.getClass()).isNotEqualTo(ZoneId.class);
+    assertThat(zoneId).isNotInstanceOf(ZoneOffset.class);
+  }
+
   @Test
   public void testZoneRegion() {
     ZoneId zoneId = ZoneId.of("Asia/Shanghai");
+    assertIsZoneRegion(zoneId);
     String json = "{\"id\":\"Asia/Shanghai\"}";
     // Object class is actually the JDK-internal ZoneRegion, but request the ZoneId adapter here
     roundTrip(zoneId, ZoneId.class, json);
+  }
+
+  @Test
+  public void testZoneRegionSerialization() {
+    // TODO: Currently uses the reflective adapter, see
+    //   https://github.com/google/gson/pull/2972#discussion_r2702021300
+    assumeTrue(JAVA_TIME_FIELDS_ARE_ACCESSIBLE);
+
+    ZoneId zoneId = ZoneId.of("Asia/Shanghai");
+    assertIsZoneRegion(zoneId);
+    String json = "{\"id\":\"Asia/Shanghai\"}";
+    // Uses runtime type of value, that is, the JDK-internal ZoneRegion
+    assertThat(gson.toJson(zoneId)).isEqualTo(json);
   }
 
   /**
@@ -219,9 +245,10 @@ public class JavaTimeTest {
    */
   @Test
   public void testZoneRegionCustomAdapter() {
-    // Gson tries to obtain adapter for runtime type ZoneRegion (which fails if class is
-    // inaccessible) and compile-time type, but prefers custom adapter for compile-time type
-    // Therefore skip this test if java.time classes are inaccessible to reflection
+    // TODO: Gson tries to obtain adapter for runtime type ZoneRegion (which fails if class is
+    //   inaccessible) and compile-time type, but prefers custom adapter for compile-time type
+    //   See https://github.com/google/gson/pull/2972#discussion_r2702021300
+    //   Therefore skip this test if java.time classes are inaccessible to reflection
     assumeTrue(JAVA_TIME_FIELDS_ARE_ACCESSIBLE);
 
     Gson customGson =
@@ -242,9 +269,7 @@ public class JavaTimeTest {
             .create();
 
     ZoneId zoneId = ZoneId.of("Asia/Shanghai");
-    // Verify that value is of JDK-internal subclass of ZoneId
-    assertThat(zoneId.getClass()).isNotEqualTo(ZoneId.class);
-    assertThat(zoneId).isNotInstanceOf(ZoneOffset.class);
+    assertIsZoneRegion(zoneId);
     ClassWithZoneId object = new ClassWithZoneId(zoneId);
 
     assertThat(customGson.toJson(object)).isEqualTo("{\"zoneId\":\"my-zone Asia/Shanghai\"}");

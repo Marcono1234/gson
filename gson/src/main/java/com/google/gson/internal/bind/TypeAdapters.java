@@ -989,6 +989,7 @@ public final class TypeAdapters {
   public static final TypeAdapterFactory ENUM_FACTORY = EnumTypeAdapter.FACTORY;
 
   interface FactorySupplier {
+    /** Gets the type adapter factory, or {@code null} if the factory cannot be supplied. */
     TypeAdapterFactory get();
   }
 

@@ -311,6 +311,8 @@ final class JavaTimeTypeAdapters implements TypeAdapters.FactorySupplier {
   // ZoneRegion if we have a ZoneRegion, and we need to write the "totalSeconds" field of ZoneOffset
   // if we have a ZoneOffset. When reading, we need to construct the appropriate thing depending
   // on which of those two fields we see.
+  // Note: This constant here seems to cause eager class loading, see
+  //   https://github.com/google/gson/pull/2972#discussion_r2702408266
   private static final TypeAdapter<ZoneId> ZONE_ID =
       new TypeAdapter<ZoneId>() {
         @Override
@@ -486,6 +488,8 @@ final class JavaTimeTypeAdapters implements TypeAdapters.FactorySupplier {
         // TypeAdapterRuntimeTypeWrapper.write. If we did, then our ZONE_ID would take
         // precedence over a ZoneId adapter that the user might have registered. (This exact
         // situation showed up in a Google-internal test.)
+        // TODO: Maybe this needs an additional `ZoneId.class.isAssignableFrom(rawType)` check
+        //   nonetheless, see https://github.com/google/gson/pull/2972#discussion_r2702021300
         adapter = ZONE_ID;
       } else if (rawType == ZonedDateTime.class) {
         adapter = zonedDateTime(gson);
